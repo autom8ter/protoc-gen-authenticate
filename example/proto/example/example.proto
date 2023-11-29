@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package authorize;
+
+option go_package = "github.com/autom8ter/protoc-gen-authenticate/example/gen/example;example";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+import "authenticate/authenticate.proto";
+
+// GoogleService service is an example of how to authenticate with Google's OAuth2 service
+service GoogleService {
+  option (authenticate.config) = {
+    providers: [{
+      jwt: {
+        algorithm: RS256,
+        jwks_uri: "https://www.googleapis.com/oauth2/v3/certs",
+        issuer: "https://accounts.google.com",
+        audience: "https://example.com",
+        require_claims: ["email_verified", "email"],
+      },
+    }]
+    whitelist_methods: ["Login"]
+  };
+  rpc Login(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc Logout(google.protobuf.Empty) returns (google.protobuf.Empty);
+}
+
+service PrivateService {
+  option (authenticate.config) = {
+    // only enabled when GRPC_AUTH=DEV env var is set
+    require_env: "DEV"
+    whitelist_methods: ["Unauthenticated"]
+    providers: [
+      {
+        jwt: {
+          algorithm: RS256,
+          secret_env: "JWT_DEV_SECRET",
+        }
+      }
+    ]
+  };
+  option (authenticate.config) = {
+    // only enabled when GRPC_AUTH=PROD env var is set
+    require_env: "PROD"
+    whitelist_methods: ["Unauthenticated"]
+    providers: [{
+      jwt: {
+        algorithm: RS256,
+        secret_env: "JWT_PROD_SECRET",
+      }
+    }]
+  };
+  rpc RequireAuthentication(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc Unauthenticated(google.protobuf.Empty) returns (google.protobuf.Empty);
+}

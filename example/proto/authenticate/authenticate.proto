@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package authenticate;
+
+option go_package = "github.com/autom8ter/proto/gen/authenticate;authenticate";
+
+import "google/protobuf/descriptor.proto";
+
+// The authentication configuration for a service.
+// At least one provider within a configuration must authenticate successfully for the request to be authenticated.
+extend google.protobuf.ServiceOptions {
+  // The authentication configuration for a service method.
+  repeated Config config = 50042;
+}
+
+// Config is the authentication configuration for a service
+message Config {
+  // The authentication configuration for a service method.
+  repeated Provider providers = 50043;
+  // The methods that do not require authentication.
+  repeated string whitelist_methods = 50044;
+  // require_env, if set, only enables the configuration if the environment variable GRPC_AUTH=${require_env} is set.
+  // This is useful for enabling different authentication in development/production environments.
+  string require_env = 6;
+}
+
+// Algorithm is the algorithm used to sign a JWT.
+enum Algorithm {
+  ALGORITHM_UNSPECIFIED = 0;
+  HS256 = 1;
+  HS384 = 2;
+  HS512 = 3;
+  RS256 = 4;
+  RS384 = 5;
+  RS512 = 6;
+  ES256 = 7;
+  ES384 = 8;
+  ES512 = 9;
+}
+
+// JwtProvider is a provider that uses a JWT to authenticate a request.
+message JwtProvider {
+  // The expected JWT issuer.
+  string issuer = 1;
+  // The expected JWT audience.
+  string audience = 2;
+  // The expected JWT algorithm.
+  Algorithm algorithm = 3;
+  // The jwks uri to fetch the public key from.
+  string jwks_uri = 4;
+  // The environment variable that contains the secret key to verify the JWT.
+  string secret_env = 5;
+  // require_claims, if set, checks that the JWT contains the specified claims.
+  repeated string require_claims = 6;
+}
+
+// Provider is a provider that can be used to authenticate a request.
+message Provider {
+  oneof provider {
+    // JwtProvider is a provider that uses a JWT to authenticate a request.
+    JwtProvider jwt = 1;
+  }
+}
