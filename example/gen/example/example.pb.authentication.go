@@ -60,7 +60,7 @@ func NewAuthentication(environment string) (grpc_auth.AuthFunc, error) {
 							Jwt: &authenticate.JwtProvider{
 								Issuer:        "",
 								Audience:      "",
-								Algorithm:     authenticate.Algorithm_RS256,
+								Algorithm:     authenticate.Algorithm_HS256,
 								JwksUri:       "",
 								SecretEnv:     "JWT_DEV_SECRET",
 								RequireClaims: []string{},
@@ -81,7 +81,7 @@ func NewAuthentication(environment string) (grpc_auth.AuthFunc, error) {
 							Jwt: &authenticate.JwtProvider{
 								Issuer:        "",
 								Audience:      "",
-								Algorithm:     authenticate.Algorithm_RS256,
+								Algorithm:     authenticate.Algorithm_HS256,
 								JwksUri:       "",
 								SecretEnv:     "JWT_PROD_SECRET",
 								RequireClaims: []string{},

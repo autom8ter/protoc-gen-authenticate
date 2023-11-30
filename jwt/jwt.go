@@ -156,16 +156,41 @@ func (j *JwtAuth) verifyJWT(ctx context.Context, jwtToken, name string, provider
 	// Parse the token
 	token, err := jwt.Parse(jwtToken, func(token *jwt.Token) (interface{}, error) {
 		switch provider.Algorithm {
-		case authenticate.Algorithm_HS256, authenticate.Algorithm_HS384, authenticate.Algorithm_HS512:
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		case authenticate.Algorithm_HS256:
+			if token.Header["alg"] != "HS256" {
 				return nil, fmt.Errorf("authenticate(%s): Unexpected signing method: %v", name, token.Header["alg"])
 			}
-		case authenticate.Algorithm_RS256, authenticate.Algorithm_RS384, authenticate.Algorithm_RS512:
-			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+		case authenticate.Algorithm_HS384:
+			if token.Header["alg"] != "HS384" {
 				return nil, fmt.Errorf("authenticate(%s): Unexpected signing method: %v", name, token.Header["alg"])
 			}
-		case authenticate.Algorithm_ES256, authenticate.Algorithm_ES384, authenticate.Algorithm_ES512:
-			if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
+		case authenticate.Algorithm_HS512:
+			if token.Header["alg"] != "HS512" {
+				return nil, fmt.Errorf("authenticate(%s): Unexpected signing method: %v", name, token.Header["alg"])
+			}
+		//case authenticate.Algorithm_PS256, authenticate.Algorithm_PS384, authenticate.Algorithm_PS512:
+		case authenticate.Algorithm_RS256:
+			if token.Header["alg"] != "RS256" {
+				return nil, fmt.Errorf("authenticate(%s): Unexpected signing method: %v", name, token.Header["alg"])
+			}
+		case authenticate.Algorithm_RS384:
+			if token.Header["alg"] != "RS384" {
+				return nil, fmt.Errorf("authenticate(%s): Unexpected signing method: %v", name, token.Header["alg"])
+			}
+		case authenticate.Algorithm_RS512:
+			if token.Header["alg"] != "RS512" {
+				return nil, fmt.Errorf("authenticate(%s): Unexpected signing method: %v", name, token.Header["alg"])
+			}
+		case authenticate.Algorithm_ES256:
+			if token.Header["alg"] != "ES256" {
+				return nil, fmt.Errorf("authenticate(%s): Unexpected signing method: %v", name, token.Header["alg"])
+			}
+		case authenticate.Algorithm_ES384:
+			if token.Header["alg"] != "ES384" {
+				return nil, fmt.Errorf("authenticate(%s): Unexpected signing method: %v", name, token.Header["alg"])
+			}
+		case authenticate.Algorithm_ES512:
+			if token.Header["alg"] != "ES512" {
 				return nil, fmt.Errorf("authenticate(%s): Unexpected signing method: %v", name, token.Header["alg"])
 			}
 		default:

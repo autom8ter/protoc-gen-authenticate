@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	`os`
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 var secret = "test-secret"
 
 func Test(t *testing.T) {
+	os.Setenv("JWT_DEV_SECRET", secret)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
