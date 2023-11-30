@@ -19,9 +19,9 @@ message Config {
   repeated Provider providers = 50043;
   // The methods that do not require authentication.
   repeated string whitelist_methods = 50044;
-  // require_env, if set, only enables the configuration if the environment variable GRPC_AUTH=${require_env} is set.
-  // This is useful for enabling different authentication in development/production environments.
-  string require_env = 6;
+  // environment, if set, only enables the configuration if the config is set to the
+  // same value. This is useful for enabling different authentication in development/production environments.
+  string environment = 6;
 }
 
 // Algorithm is the algorithm used to sign a JWT.
@@ -56,8 +56,9 @@ message JwtProvider {
 
 // Provider is a provider that can be used to authenticate a request.
 message Provider {
+  string name = 1;
   oneof provider {
     // JwtProvider is a provider that uses a JWT to authenticate a request.
-    JwtProvider jwt = 1;
+    JwtProvider jwt = 2;
   }
 }

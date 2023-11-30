@@ -13,7 +13,7 @@ import (
 
 func runServer() error {
 	// create a new authenticator from the generated function(protoc-gen-authenticate)
-	auth, err := example.NewAuthentication()
+	auth, err := example.NewAuthentication("TEST")
 	if err != nil {
 		return err
 	}
@@ -26,10 +26,10 @@ func runServer() error {
 			grpc_auth.StreamServerInterceptor(auth),
 		),
 	)
-	goog, private := server.NewExampleServer()
+	exampleServer := &server.ExampleServer{}
 	// register the example service
-	example.RegisterPrivateServiceServer(srv, private)
-	example.RegisterGoogleServiceServer(srv, goog)
+	example.RegisterPrivateServiceServer(srv, exampleServer)
+	example.RegisterGoogleServiceServer(srv, exampleServer)
 	lis, err := net.Listen("tcp", ":10042")
 	if err != nil {
 		return err

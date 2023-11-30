@@ -1,11 +1,14 @@
 package example
 
 import (
+	"context"
+
 	"github.com/autom8ter/proto/gen/authenticate"
 
+	"github.com/golang-jwt/jwt/v5"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
 
-	"github.com/autom8ter/protoc-gen-authenticate/jwt"
+	jwtAuth "github.com/autom8ter/protoc-gen-authenticate/jwt"
 )
 
 type ctxKey string
@@ -16,13 +19,17 @@ const (
 )
 
 // NewAuthentication returns a new authentication interceptor
-func NewAuthentication() (grpc_auth.AuthFunc, error) {
-	auth, err := jwt.NewJwtAuth(CtxClaimsKey, map[string][]*authenticate.Config{
-		"GoogleService": {
+func NewAuthentication(environment string) (grpc_auth.AuthFunc, error) {
+	auth, err := jwtAuth.NewJwtAuth(environment, CtxClaimsKey, map[string][]*authenticate.Config{
+		"example.GoogleService": {
 			{
-				RequireEnv: "",
+				Environment: "TEST",
+				WhitelistMethods: []string{
+					"Login",
+				},
 				Providers: []*authenticate.Provider{
 					{
+						Name: "google",
 						Provider: &authenticate.Provider_Jwt{
 							Jwt: &authenticate.JwtProvider{
 								Issuer:    "https://accounts.google.com",
@@ -40,11 +47,15 @@ func NewAuthentication() (grpc_auth.AuthFunc, error) {
 				},
 			},
 		},
-		"PrivateService": {
+		"example.PrivateService": {
 			{
-				RequireEnv: "DEV",
+				Environment: "TEST",
+				WhitelistMethods: []string{
+					"Unauthenticated",
+				},
 				Providers: []*authenticate.Provider{
 					{
+						Name: "custom",
 						Provider: &authenticate.Provider_Jwt{
 							Jwt: &authenticate.JwtProvider{
 								Issuer:        "",
@@ -59,9 +70,13 @@ func NewAuthentication() (grpc_auth.AuthFunc, error) {
 				},
 			},
 			{
-				RequireEnv: "PROD",
+				Environment: "PROD",
+				WhitelistMethods: []string{
+					"Unauthenticated",
+				},
 				Providers: []*authenticate.Provider{
 					{
+						Name: "custom",
 						Provider: &authenticate.Provider_Jwt{
 							Jwt: &authenticate.JwtProvider{
 								Issuer:        "",
@@ -81,4 +96,12 @@ func NewAuthentication() (grpc_auth.AuthFunc, error) {
 		return nil, err
 	}
 	return auth.Verify, nil
+}
+
+func GetClaims(ctx context.Context) (jwt.MapClaims, bool) {
+	claims, ok := ctx.Value(CtxClaimsKey).(jwt.MapClaims)
+	if !ok {
+		return nil, false
+	}
+	return claims, true
 }

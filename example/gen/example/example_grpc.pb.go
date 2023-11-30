@@ -20,8 +20,8 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	GoogleService_Login_FullMethodName  = "/authorize.GoogleService/Login"
-	GoogleService_Logout_FullMethodName = "/authorize.GoogleService/Logout"
+	GoogleService_Login_FullMethodName  = "/example.GoogleService/Login"
+	GoogleService_Logout_FullMethodName = "/example.GoogleService/Logout"
 )
 
 // GoogleServiceClient is the client API for GoogleService service.
@@ -130,7 +130,7 @@ func _GoogleService_Logout_Handler(srv interface{}, ctx context.Context, dec fun
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var GoogleService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "authorize.GoogleService",
+	ServiceName: "example.GoogleService",
 	HandlerType: (*GoogleServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -147,8 +147,8 @@ var GoogleService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	PrivateService_RequireAuthentication_FullMethodName = "/authorize.PrivateService/RequireAuthentication"
-	PrivateService_Unauthenticated_FullMethodName       = "/authorize.PrivateService/Unauthenticated"
+	PrivateService_RequireAuthentication_FullMethodName = "/example.PrivateService/RequireAuthentication"
+	PrivateService_Unauthenticated_FullMethodName       = "/example.PrivateService/Unauthenticated"
 )
 
 // PrivateServiceClient is the client API for PrivateService service.
@@ -257,7 +257,7 @@ func _PrivateService_Unauthenticated_Handler(srv interface{}, ctx context.Contex
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var PrivateService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "authorize.PrivateService",
+	ServiceName: "example.PrivateService",
 	HandlerType: (*PrivateServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package authorize;
+package example;
 
 option go_package = "github.com/autom8ter/protoc-gen-authenticate/example/gen/example;example";
 
@@ -11,7 +11,9 @@ import "authenticate/authenticate.proto";
 // GoogleService service is an example of how to authenticate with Google's OAuth2 service
 service GoogleService {
   option (authenticate.config) = {
+    environment: "TEST"
     providers: [{
+      name: "google",
       jwt: {
         algorithm: RS256,
         jwks_uri: "https://www.googleapis.com/oauth2/v3/certs",
@@ -28,13 +30,13 @@ service GoogleService {
 
 service PrivateService {
   option (authenticate.config) = {
-    // only enabled when GRPC_AUTH=DEV env var is set
-    require_env: "DEV"
+    environment: "TEST"
     whitelist_methods: ["Unauthenticated"]
     providers: [
       {
+        name: "custom",
         jwt: {
-          algorithm: RS256,
+          algorithm: HS256,
           secret_env: "JWT_DEV_SECRET",
         }
       }
@@ -42,11 +44,12 @@ service PrivateService {
   };
   option (authenticate.config) = {
     // only enabled when GRPC_AUTH=PROD env var is set
-    require_env: "PROD"
+    environment: "PROD"
     whitelist_methods: ["Unauthenticated"]
     providers: [{
+      name: "custom",
       jwt: {
-        algorithm: RS256,
+        algorithm: HS256,
         secret_env: "JWT_PROD_SECRET",
       }
     }]

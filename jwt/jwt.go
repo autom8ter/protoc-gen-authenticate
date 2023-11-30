@@ -36,22 +36,23 @@ func fetchJWKS(jwksURL string) (*jwt.VerificationKeySet, error) {
 
 // JwtAuth authenticates inbound JWTs
 type JwtAuth struct {
-	config     map[string][]*authenticate.Config
-	cachedKeys map[string]*jwt.VerificationKeySet
-	mu         sync.RWMutex
-	ctxKey     any
+	environment string
+	config      map[string][]*authenticate.Config
+	cachedKeys  sync.Map
+	ctxKey      any
 }
 
-func NewJwtAuth(ctxClaimsKey any, config map[string][]*authenticate.Config) (*JwtAuth, error) {
+// NewJwtAuth returns a new JwtAuth instance
+func NewJwtAuth(environment string, ctxClaimsKey any, config map[string][]*authenticate.Config) (*JwtAuth, error) {
 	j := &JwtAuth{
-		config:     config,
-		cachedKeys: make(map[string]*jwt.VerificationKeySet),
-		mu:         sync.RWMutex{},
-		ctxKey:     ctxClaimsKey,
+		config:      config,
+		cachedKeys:  sync.Map{},
+		ctxKey:      ctxClaimsKey,
+		environment: environment,
 	}
 	for _, configs := range config {
 		for _, serviceConfig := range configs {
-			if serviceConfig.RequireEnv != "" && os.Getenv("GRPC_AUTH") != serviceConfig.RequireEnv {
+			if serviceConfig.Environment != "" && environment != serviceConfig.Environment {
 				continue
 			}
 			for _, provider := range serviceConfig.Providers {
@@ -64,7 +65,7 @@ func NewJwtAuth(ctxClaimsKey any, config map[string][]*authenticate.Config) (*Jw
 					if err != nil {
 						return nil, err
 					}
-					j.cachedKeys[providerJWT.JwksUri] = keys
+					j.cachedKeys.Store(providerJWT.JwksUri, keys)
 				}
 			}
 		}
@@ -74,56 +75,54 @@ func NewJwtAuth(ctxClaimsKey any, config map[string][]*authenticate.Config) (*Jw
 		for {
 			select {
 			case <-ticker.C:
-				j.mu.RLock()
-				keys := j.cachedKeys
-				j.mu.RUnlock()
-				for uri, _ := range keys {
-					keys, err := fetchJWKS(uri)
+				j.cachedKeys.Range(func(key, value any) bool {
+					keys, err := fetchJWKS(key.(string))
 					if err != nil {
-						fmt.Println(err.Error())
-						continue
+						panic(err)
 					}
-					j.mu.Lock()
-					j.cachedKeys[uri] = keys
-					j.mu.Unlock()
-				}
+					j.cachedKeys.Store(key, keys)
+					return true
+				})
 			}
 		}
 	}()
 	return j, nil
 }
 
-func (j *JwtAuth) Verify(ctx context.Context) (context.Context, error) {
-	jwtToken, err := grpc_auth.AuthFromMD(ctx, "bearer")
-	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, err.Error())
+// VerifyMethod verifies the JWT for a given method
+func (j *JwtAuth) VerifyMethod(ctx context.Context, fullMethodName string) (context.Context, error) {
+
+	methodSplit := strings.Split(fullMethodName, "/")
+	if len(methodSplit) != 3 {
+		return nil, status.Errorf(codes.Internal, "authenticate: invalid method name")
 	}
-	// "/service/method".
-	method, ok := grpc.Method(ctx)
-	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "missing method")
-	}
-	methodName := strings.Split(method, "/")[2]
-	svcName := strings.Split(method, "/")[1]
+	methodName := strings.Split(fullMethodName, "/")[2]
+	svcName := strings.Split(fullMethodName, "/")[1]
 	var errors []string
 	for svc, configs := range j.config {
 		if svc != svcName {
 			continue
 		}
 		for _, serviceConfig := range configs {
-
-			if serviceConfig.RequireEnv != "" && os.Getenv("GRPC_AUTH") != serviceConfig.RequireEnv {
+			if serviceConfig.Environment != "" && j.environment != serviceConfig.Environment {
 				continue
 			}
-			if lo.Contains(serviceConfig.WhitelistMethods, methodName) {
-				return ctx, nil
+			if len(serviceConfig.WhitelistMethods) > 0 {
+				if lo.Contains(serviceConfig.WhitelistMethods, methodName) {
+					return ctx, nil
+				}
 			}
+
 			for _, p := range serviceConfig.Providers {
 				if p.GetJwt() == nil {
 					continue
 				}
+				jwtToken, err := grpc_auth.AuthFromMD(ctx, "bearer")
+				if err != nil {
+					return nil, status.Errorf(codes.Unauthenticated, err.Error())
+				}
 				providerJWT := p.GetJwt()
-				claims, err := j.verifyJWT(ctx, jwtToken, providerJWT)
+				claims, err := j.verifyJWT(ctx, jwtToken, p.Name, providerJWT)
 				if err != nil {
 					errors = append(errors, err.Error())
 					continue
@@ -132,64 +131,83 @@ func (j *JwtAuth) Verify(ctx context.Context) (context.Context, error) {
 			}
 		}
 	}
+	if len(errors) == 0 {
+		return nil, status.Errorf(codes.Unauthenticated, "authenticate: missing jwt provider for method: %v", methodName)
+	}
 	return nil, status.Errorf(codes.Unauthenticated, strings.Join(errors, "\n"))
 }
 
-func (j *JwtAuth) verifyJWT(ctx context.Context, jwtToken string, provider *authenticate.JwtProvider) (jwt.MapClaims, error) {
+// Verify verifies the JWT
+func (j *JwtAuth) Verify(ctx context.Context) (context.Context, error) {
+	method, ok := grpc.Method(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "authenticate: missing grpc method")
+	}
+	return j.VerifyMethod(ctx, method)
+}
+
+func (j *JwtAuth) verifyJWT(ctx context.Context, jwtToken, name string, provider *authenticate.JwtProvider) (jwt.MapClaims, error) {
 	if provider.SecretEnv == "" && provider.JwksUri == "" {
 		return nil, fmt.Errorf("authenticate: missing secret env / jwks uri - at least one is required")
 	}
 	if provider.Algorithm == authenticate.Algorithm_ALGORITHM_UNSPECIFIED {
-		return nil, fmt.Errorf("authenticate: missing jwt signing algorithm")
+		return nil, fmt.Errorf("authenticate(%s): missing jwt signing algorithm", name)
 	}
 	// Parse the token
 	token, err := jwt.Parse(jwtToken, func(token *jwt.Token) (interface{}, error) {
 		switch provider.Algorithm {
 		case authenticate.Algorithm_HS256, authenticate.Algorithm_HS384, authenticate.Algorithm_HS512:
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("authenticate: Unexpected signing method: %v", token.Header["alg"])
+				return nil, fmt.Errorf("authenticate(%s): Unexpected signing method: %v", name, token.Header["alg"])
 			}
 		case authenticate.Algorithm_RS256, authenticate.Algorithm_RS384, authenticate.Algorithm_RS512:
 			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-				return nil, fmt.Errorf("authenticate: Unexpected signing method: %v", token.Header["alg"])
+				return nil, fmt.Errorf("authenticate(%s): Unexpected signing method: %v", name, token.Header["alg"])
 			}
 		case authenticate.Algorithm_ES256, authenticate.Algorithm_ES384, authenticate.Algorithm_ES512:
 			if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
-				return nil, fmt.Errorf("authenticate: Unexpected signing method: %v", token.Header["alg"])
+				return nil, fmt.Errorf("authenticate(%s): Unexpected signing method: %v", name, token.Header["alg"])
 			}
 		default:
-			return nil, fmt.Errorf("authenticate: invalid jwt signing algorithm: %v", provider.Algorithm)
+			return nil, fmt.Errorf("authenticate(%s): invalid jwt signing algorithm: %v", provider.Algorithm.String(), name)
 		}
 		if provider.SecretEnv != "" && os.Getenv(provider.SecretEnv) != "" {
 			return []byte(os.Getenv(provider.SecretEnv)), nil
 		}
 		if provider.JwksUri != "" {
-			j.mu.RLock()
-			keys, ok := j.cachedKeys[provider.JwksUri]
-			j.mu.RUnlock()
+			keys, ok := j.cachedKeys.Load(provider.JwksUri)
 			if !ok {
-				return nil, status.Errorf(codes.Internal, "missing jwks for uri: %v", provider.JwksUri)
+				return nil, status.Errorf(codes.Internal, "authenticate(%s): missing jwks for uri: %v", provider.JwksUri, name)
 			}
-			return keys, nil
+			return keys.(*jwt.VerificationKeySet), nil
 		}
-		return nil, status.Errorf(codes.Internal, "authenticate: missing secret env or jwks uri")
+		return nil, status.Errorf(codes.Internal, "authenticate(%s): missing secret env or jwks uri", name)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, err.Error())
 	}
+	if !token.Valid {
+		return nil, status.Errorf(codes.Unauthenticated, "authenticate(%s): invalid token", name)
+	}
 	if claims, ok := token.Claims.(jwt.MapClaims); ok {
 		for _, required := range provider.RequireClaims {
 			if _, ok := claims[required]; !ok {
-				return nil, status.Errorf(codes.Unauthenticated, "authenticate: missing required claim: %v", required)
+				return nil, status.Errorf(codes.Unauthenticated, "authenticate(%s): missing required claim: %v", required, name)
 			}
 		}
 		if provider.Audience != "" && claims["aud"] != provider.Audience {
-			return nil, status.Errorf(codes.Unauthenticated, "authenticate: invalid audience")
+			return nil, status.Errorf(codes.Unauthenticated, "authenticate(%s): invalid audience", name)
 		}
 		if provider.Issuer != "" && claims["iss"] != provider.Issuer {
-			return nil, status.Errorf(codes.Unauthenticated, "authenticate: invalid issuer")
+			return nil, status.Errorf(codes.Unauthenticated, "authenticate(%s): invalid issuer", name)
 		}
 		return claims, nil
 	}
-	return nil, status.Errorf(codes.Unauthenticated, "authenticate: invalid claims")
+	return nil, status.Errorf(codes.Unauthenticated, "authenticate(%s): invalid claims", name)
+}
+
+// Sign signs a JWT
+func Sign(ctx context.Context, claims jwt.MapClaims, secret string, algorithm jwt.SigningMethod) (string, error) {
+	token := jwt.NewWithClaims(algorithm, claims)
+	return token.SignedString([]byte(secret))
 }

@@ -1,14 +1,30 @@
 package server
 
 import (
+	"context"
+
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/autom8ter/protoc-gen-authenticate/example/gen/example"
 )
 
-type exampleServer struct {
-	example.UnimplementedPrivateServiceServer
+type ExampleServer struct {
 	example.UnimplementedGoogleServiceServer
+	example.UnimplementedPrivateServiceServer
 }
 
-func NewExampleServer() (example.GoogleServiceServer, example.PrivateServiceServer) {
-	return &exampleServer{}, &exampleServer{}
+func (e *ExampleServer) RequireAuthentication(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
+	return &emptypb.Empty{}, nil
+}
+
+func (e *ExampleServer) Unauthenticated(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
+	return &emptypb.Empty{}, nil
+}
+
+func (e *ExampleServer) Login(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
+	return &emptypb.Empty{}, nil
+}
+
+func (e *ExampleServer) Logout(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
+	return &emptypb.Empty{}, nil
 }

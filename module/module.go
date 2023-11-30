@@ -2,6 +2,7 @@ package module
 
 import (
 	"bytes"
+	`fmt`
 	"text/template"
 
 	"github.com/autom8ter/proto/gen/authenticate"
@@ -50,7 +51,21 @@ func (m *module) generate(f pgs.File) {
 		if !ok {
 			continue
 		}
-		configMap[s.Name().UpperCamelCase().String()] = configs
+		for _, config := range configs {
+			for _, provider := range config.Providers {
+				if provider.GetName() == "" {
+					m.AddError("authenticate: provider name cannot be empty")
+					continue
+				}
+				if pjwt := provider.GetJwt(); pjwt != nil {
+					if pjwt.JwksUri == "" && pjwt.SecretEnv == "" {
+						m.AddError("authenticate: jwks_uri OR secret_env must be set")
+						continue
+					}
+				}
+			}
+		}
+		configMap[fmt.Sprintf("%s.%s", m.Context.PackageName(f).String(), s.Name())] = configs
 	}
 	if len(configMap) == 0 {
 		return
@@ -79,42 +94,18 @@ type templateData struct {
 	Configs map[string][]*authenticate.Config
 }
 
-//func NewJwtAuth(ctxClaimsKey any, config map[string][]*authenticate.Config) (*JwtAuth, error)
-/*
-
-// JwtProvider is a provider that uses a JWT to authenticate a request.
-message JwtProvider {
-  // The expected JWT issuer.
-  string issuer = 1;
-  // The expected JWT audience.
-  string audience = 2;
-  // The expected JWT algorithm.
-  Algorithm algorithm = 3;
-  // The jwks uri to fetch the public key from.
-  string jwks_uri = 4;
-  // The environment variable that contains the secret key to verify the JWT.
-  string secret_env = 5;
-  // require_claims, if set, checks that the JWT contains the specified claims.
-  repeated string require_claims = 6;
-}
-
-// Provider is a provider that can be used to authenticate a request.
-message Provider {
-  oneof provider {
-    // JwtProvider is a provider that uses a JWT to authenticate a request.
-    JwtProvider jwt = 1;
-  }
-}
-
-*/
 var tmpl = `
 package {{ .Package }}
 
 import (
+	"context"
+
 	"github.com/autom8ter/proto/gen/authenticate"
 
-	"github.com/autom8ter/protoc-gen-authenticate/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
+
+	jwtAuth "github.com/autom8ter/protoc-gen-authenticate/jwt"
 )
 
 type ctxKey string
@@ -125,16 +116,22 @@ const (
 )
 
 // NewAuthentication returns a new authentication interceptor
-func NewAuthentication() (grpc_auth.AuthFunc, error) {
-	auth, err := jwt.NewJwtAuth(CtxClaimsKey, map[string][]*authenticate.Config{
+func NewAuthentication(environment string) (grpc_auth.AuthFunc, error) {
+	auth, err := jwtAuth.NewJwtAuth(environment, CtxClaimsKey, map[string][]*authenticate.Config{
 	{{- range $service, $configs := .Configs }}
 	  "{{ $service }}": {
 		{{- range $config := $configs }}
 		{
-			RequireEnv: "{{ $config.RequireEnv }}",
+			Environment: "{{ $config.Environment }}",
+			WhitelistMethods: []string{
+						{{- range $method := $config.WhitelistMethods }}
+						"{{ $method }}",
+						{{- end }}
+					},
 			Providers: []*authenticate.Provider{
 				{{- range $provider := $config.Providers }}
 				{
+					Name: "{{ $provider.Name }}",
 					{{- if $provider.GetJwt }}
 					Provider: &authenticate.Provider_Jwt{
 						Jwt: &authenticate.JwtProvider{
@@ -163,5 +160,13 @@ func NewAuthentication() (grpc_auth.AuthFunc, error) {
 		return nil, err
 	}
 	return auth.Verify, nil
+}
+
+func GetClaims(ctx context.Context) (jwt.MapClaims, bool) {
+	claims, ok := ctx.Value(CtxClaimsKey).(jwt.MapClaims)
+	if !ok {
+		return nil, false
+	}
+	return claims, true
 }
 `
