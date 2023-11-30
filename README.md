@@ -12,11 +12,11 @@ expression-based rules for robust and efficient request handling 💼.
 
 ## Features
 
-- [x] Compatible with grpc-middleware authentication interceptors
+- [x] Compatible with [grpc-middleware authentication interceptors](https://pkg.go.dev/github.com/grpc-ecosystem/go-grpc-middleware/v2#readme-auth)
 - [x] Highly configurable JWT authentication
 - [x] Supports multiple authentication providers
 - [x] Support for Remote JWKS (JSON Web Key Set) endpoints
-- [x] Support for different providers based on environment variables(GRPC_AUTH)
+- [x] Support for different providers based on environment
 
 ## Installation
 
@@ -47,5 +47,74 @@ plugins:
 ```
 
 ## Example
+
+```proto
+// GoogleService service is an example of how to authenticate with Google's OAuth2 service
+service GoogleService {
+  option (authenticate.config) = {
+    environment: "TEST"
+    providers: [{
+      name: "google",
+      jwt: {
+        algorithm: RS256,
+        jwks_uri: "https://www.googleapis.com/oauth2/v3/certs",
+        issuer: "https://accounts.google.com",
+        audience: "https://example.com",
+        require_claims: ["email_verified", "email"],
+      },
+    }]
+    whitelist_methods: ["Login"]
+  };
+  rpc Login(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc Logout(google.protobuf.Empty) returns (google.protobuf.Empty);
+}
+
+service PrivateService {
+  option (authenticate.config) = {
+    environment: "TEST"
+    whitelist_methods: ["Unauthenticated"]
+    providers: [
+      {
+        name: "custom",
+        jwt: {
+          algorithm: HS256,
+          secret_env: "JWT_DEV_SECRET",
+        }
+      }
+    ]
+  };
+  option (authenticate.config) = {
+    // only enabled when GRPC_AUTH=PROD env var is set
+    environment: "PROD"
+    whitelist_methods: ["Unauthenticated"]
+    providers: [{
+      name: "custom",
+      jwt: {
+        algorithm: HS256,
+        secret_env: "JWT_PROD_SECRET",
+      }
+    }]
+  };
+  rpc RequireAuthentication(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc Unauthenticated(google.protobuf.Empty) returns (google.protobuf.Empty);
+}
+```
+
+```go
+    // create a new authenticator from the generated function(protoc-gen-authenticate)
+	auth, err := example.NewAuthentication("TEST")
+	if err != nil {
+		return err
+	}
+	// create a new grpc server with the authorizer interceptors
+	srv := grpc.NewServer(
+		grpc.UnaryInterceptor(
+			grpc_auth.UnaryServerInterceptor(auth),
+		),
+		grpc.StreamInterceptor(
+			grpc_auth.StreamServerInterceptor(auth),
+		),
+	)
+```
 
 See [example](example) for the full example.

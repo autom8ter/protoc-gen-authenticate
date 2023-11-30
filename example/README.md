@@ -1,6 +1,6 @@
-# protoc-gen-authorize example
+# protoc-gen-authenticate example
 
-This is an example of how to use the `protoc-gen-authorize` plugin.
+This is an example of how to use the `protoc-gen-authenticate` plugin.
 
 See [example.proto](proto/example/example.proto) for the example protocol buffer definition.
 
