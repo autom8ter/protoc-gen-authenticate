@@ -12,7 +12,7 @@ expression-based rules for robust and efficient request handling 💼.
 
 ## Features
 
-- [x] Compatible with [grpc-middleware authentication interceptors](https://pkg.go.dev/github.com/grpc-ecosystem/go-grpc-middleware/v2#readme-auth)
+- [x] Generated code can be used with Unary and Stream interceptors in `github.com/autom8ter/protoc-gen-authenticate/authenticator`
 - [x] Highly configurable JWT authentication
 - [x] Supports multiple authentication providers
 - [x] Support for Remote JWKS (JSON Web Key Set) endpoints

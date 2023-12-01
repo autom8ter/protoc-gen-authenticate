@@ -6,8 +6,8 @@ import (
 	"github.com/autom8ter/proto/gen/authenticate"
 
 	"github.com/golang-jwt/jwt/v5"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
 
+	"github.com/autom8ter/protoc-gen-authenticate/authenticator"
 	jwtAuth "github.com/autom8ter/protoc-gen-authenticate/jwt"
 )
 
@@ -18,8 +18,8 @@ const (
 	CtxClaimsKey ctxKey = "authenticate.claims"
 )
 
-// NewAuthentication returns a new authentication interceptor
-func NewAuthentication(environment string) (grpc_auth.AuthFunc, error) {
+// NewAuthentication returns a new authenticator that can be used in unary/stream interceptors
+func NewAuthentication(environment string) (authenticator.AuthFunc, error) {
 	auth, err := jwtAuth.NewJwtAuth(environment, CtxClaimsKey, map[string][]*authenticate.Config{
 		"example.GoogleService": {
 			{
@@ -95,9 +95,10 @@ func NewAuthentication(environment string) (grpc_auth.AuthFunc, error) {
 	if err != nil {
 		return nil, err
 	}
-	return auth.Verify, nil
+	return auth.Authenticate, nil
 }
 
+// GetClaims returns the claims from a context
 func GetClaims(ctx context.Context) (jwt.MapClaims, bool) {
 	claims, ok := ctx.Value(CtxClaimsKey).(jwt.MapClaims)
 	if !ok {

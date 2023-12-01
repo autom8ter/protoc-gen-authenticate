@@ -25,7 +25,7 @@ type fixture struct {
 	expectClaims func(t *testing.T, claims jwt2.MapClaims)
 }
 
-func TestJwtAuth_Verify(t *testing.T) {
+func TestJwtAuth_Authenticate(t *testing.T) {
 	var fixtures = []*fixture{
 		{
 			environment: "TEST",
@@ -401,7 +401,7 @@ func TestJwtAuth_Verify(t *testing.T) {
 			// Mock GRPC context with metadata
 			md := metadata.New(map[string]string{"authorization": fmt.Sprintf("Bearer %s", fix.getToken(t, ctx))})
 
-			ctx, err = jwtAuth.VerifyMethod(metadata.NewIncomingContext(ctx, md), fix.method)
+			ctx, err = jwtAuth.AuthenticateMethod(metadata.NewIncomingContext(ctx, md), fix.method)
 			if fix.expectError {
 				require.Error(t, err)
 				return

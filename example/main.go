@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net"
 
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
 	"google.golang.org/grpc"
 
+	"github.com/autom8ter/protoc-gen-authenticate/authenticator"
 	"github.com/autom8ter/protoc-gen-authenticate/example/gen/example"
 	"github.com/autom8ter/protoc-gen-authenticate/example/server"
 )
@@ -20,10 +20,10 @@ func runServer() error {
 	// create a new grpc server with the authorizer interceptors
 	srv := grpc.NewServer(
 		grpc.UnaryInterceptor(
-			grpc_auth.UnaryServerInterceptor(auth),
+			authenticator.UnaryServerInterceptor(auth),
 		),
 		grpc.StreamInterceptor(
-			grpc_auth.StreamServerInterceptor(auth),
+			authenticator.StreamServerInterceptor(auth),
 		),
 	)
 	exampleServer := &server.ExampleServer{}

@@ -89,8 +89,8 @@ func NewJwtAuth(environment string, ctxClaimsKey any, config map[string][]*authe
 	return j, nil
 }
 
-// VerifyMethod verifies the JWT for a given method
-func (j *JwtAuth) VerifyMethod(ctx context.Context, fullMethodName string) (context.Context, error) {
+// AuthenticateMethod verifies the JWT for a given method
+func (j *JwtAuth) AuthenticateMethod(ctx context.Context, fullMethodName string) (context.Context, error) {
 
 	methodSplit := strings.Split(fullMethodName, "/")
 	if len(methodSplit) != 3 {
@@ -137,13 +137,13 @@ func (j *JwtAuth) VerifyMethod(ctx context.Context, fullMethodName string) (cont
 	return nil, status.Errorf(codes.Unauthenticated, strings.Join(errors, "\n"))
 }
 
-// Verify verifies the JWT
-func (j *JwtAuth) Verify(ctx context.Context) (context.Context, error) {
+// Authenticate verifies the JWT
+func (j *JwtAuth) Authenticate(ctx context.Context) (context.Context, error) {
 	method, ok := grpc.Method(ctx)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "authenticate: missing grpc method")
 	}
-	return j.VerifyMethod(ctx, method)
+	return j.AuthenticateMethod(ctx, method)
 }
 
 func (j *JwtAuth) verifyJWT(ctx context.Context, jwtToken, name string, provider *authenticate.JwtProvider) (jwt.MapClaims, error) {
