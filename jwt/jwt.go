@@ -19,6 +19,20 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+type options struct {
+	claimsToContext ClaimsToContext
+}
+
+// Option is a functional option for configuring the authenticator
+type Option func(*options)
+
+// WithClaimsToContext sets the claimsToContext function for the authenticator
+func WithClaimsToContext(claimsToContext ClaimsToContext) Option {
+	return func(o *options) {
+		o.claimsToContext = claimsToContext
+	}
+}
+
 // fetchJWKS fetches a JWKS from a given URL
 func fetchJWKS(jwksURL string) (*jwt.VerificationKeySet, error) {
 	resp, err := http.Get(jwksURL)
@@ -36,19 +50,31 @@ func fetchJWKS(jwksURL string) (*jwt.VerificationKeySet, error) {
 
 // JwtAuth authenticates inbound JWTs
 type JwtAuth struct {
-	environment string
-	config      map[string][]*authenticate.Config
-	cachedKeys  sync.Map
-	ctxKey      any
+	environment     string
+	config          map[string][]*authenticate.Config
+	cachedKeys      sync.Map
+	claimsToContext ClaimsToContext
 }
 
+// ClaimsToContext is a function that adds claims to a context
+type ClaimsToContext func(ctx context.Context, claims jwt.MapClaims) context.Context
+
 // NewJwtAuth returns a new JwtAuth instance
-func NewJwtAuth(environment string, ctxClaimsKey any, config map[string][]*authenticate.Config) (*JwtAuth, error) {
+func NewJwtAuth(environment string, config map[string][]*authenticate.Config, opts ...Option) (*JwtAuth, error) {
+	var o = &options{}
+	for _, opt := range opts {
+		opt(o)
+	}
 	j := &JwtAuth{
-		config:      config,
-		cachedKeys:  sync.Map{},
-		ctxKey:      ctxClaimsKey,
-		environment: environment,
+		config:          config,
+		cachedKeys:      sync.Map{},
+		claimsToContext: o.claimsToContext,
+		environment:     environment,
+	}
+	if j.claimsToContext == nil {
+		j.claimsToContext = func(ctx context.Context, claims jwt.MapClaims) context.Context {
+			return ctx
+		}
 	}
 	for _, configs := range config {
 		for _, serviceConfig := range configs {
@@ -127,7 +153,7 @@ func (j *JwtAuth) AuthenticateMethod(ctx context.Context, fullMethodName string)
 					errors = append(errors, err.Error())
 					continue
 				}
-				return context.WithValue(ctx, j.ctxKey, claims), nil
+				return j.claimsToContext(ctx, claims), nil
 			}
 		}
 	}

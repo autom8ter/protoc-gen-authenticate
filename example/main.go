@@ -1,19 +1,25 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 
+	jwt2 "github.com/golang-jwt/jwt/v5"
 	"google.golang.org/grpc"
 
 	"github.com/autom8ter/protoc-gen-authenticate/authenticator"
 	"github.com/autom8ter/protoc-gen-authenticate/example/gen/example"
 	"github.com/autom8ter/protoc-gen-authenticate/example/server"
+	`github.com/autom8ter/protoc-gen-authenticate/jwt`
 )
 
 func runServer() error {
+	var ctxKey = "user"
 	// create a new authenticator from the generated function(protoc-gen-authenticate)
-	auth, err := example.NewAuthentication("TEST")
+	auth, err := example.NewAuthentication("TEST", jwt.WithClaimsToContext(func(ctx context.Context, claims jwt2.MapClaims) context.Context {
+		return context.WithValue(ctx, ctxKey, claims)
+	}))
 	if err != nil {
 		return err
 	}

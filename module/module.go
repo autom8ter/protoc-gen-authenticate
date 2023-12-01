@@ -98,26 +98,16 @@ var tmpl = `
 package {{ .Package }}
 
 import (
-	"context"
-
 	"github.com/autom8ter/proto/gen/authenticate"
-
-	"github.com/golang-jwt/jwt/v5"
-
+	
 	"github.com/autom8ter/protoc-gen-authenticate/authenticator"
 	jwtAuth "github.com/autom8ter/protoc-gen-authenticate/jwt"
 )
 
-type ctxKey string
-
-const (
-	// CtxClaimsKey is the context key for storing the claims
-	CtxClaimsKey ctxKey = "authenticate.claims"
-)
-
 // NewAuthentication returns a new authenticator that can be used in unary/stream interceptors
-func NewAuthentication(environment string) (authenticator.AuthFunc, error) {
-	auth, err := jwtAuth.NewJwtAuth(environment, CtxClaimsKey, map[string][]*authenticate.Config{
+// The authenticator will use the claimsToContext function to add claims to the context if the request is authenticated
+func NewAuthentication(environment string, opts ...jwtAuth.Option) (authenticator.AuthFunc, error) {
+	auth, err := jwtAuth.NewJwtAuth(environment, map[string][]*authenticate.Config{
 	{{- range $service, $configs := .Configs }}
 	  "{{ $service }}": {
 		{{- range $config := $configs }}
@@ -155,19 +145,11 @@ func NewAuthentication(environment string) (authenticator.AuthFunc, error) {
 		{{- end }}
 	  },
 	{{- end }}
-	})
+	}, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return auth.Authenticate, nil
 }
 
-// GetClaims returns the claims from a context
-func GetClaims(ctx context.Context) (jwt.MapClaims, bool) {
-	claims, ok := ctx.Value(CtxClaimsKey).(jwt.MapClaims)
-	if !ok {
-		return nil, false
-	}
-	return claims, true
-}
 `

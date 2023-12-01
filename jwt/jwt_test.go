@@ -396,7 +396,7 @@ func TestJwtAuth_Authenticate(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			// Initialize JwtAuth with mock configurations
-			jwtAuth, err := jwt.NewJwtAuth(fix.environment, "authenticate.claims", fix.config)
+			jwtAuth, err := jwt.NewJwtAuth(fix.environment, fix.config)
 			require.NoError(t, err)
 			// Mock GRPC context with metadata
 			md := metadata.New(map[string]string{"authorization": fmt.Sprintf("Bearer %s", fix.getToken(t, ctx))})
