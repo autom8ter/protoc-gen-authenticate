@@ -57,7 +57,7 @@ type JwtAuth struct {
 }
 
 // ClaimsToContext is a function that adds claims to a context
-type ClaimsToContext func(ctx context.Context, claims jwt.MapClaims) context.Context
+type ClaimsToContext func(ctx context.Context, claims jwt.MapClaims) (context.Context, error)
 
 // NewJwtAuth returns a new JwtAuth instance
 func NewJwtAuth(environment string, config map[string][]*authenticate.Config, opts ...Option) (*JwtAuth, error) {
@@ -72,8 +72,8 @@ func NewJwtAuth(environment string, config map[string][]*authenticate.Config, op
 		environment:     environment,
 	}
 	if j.claimsToContext == nil {
-		j.claimsToContext = func(ctx context.Context, claims jwt.MapClaims) context.Context {
-			return ctx
+		j.claimsToContext = func(ctx context.Context, claims jwt.MapClaims) (context.Context, error) {
+			return ctx, nil
 		}
 	}
 	for _, configs := range config {
@@ -153,7 +153,7 @@ func (j *JwtAuth) AuthenticateMethod(ctx context.Context, fullMethodName string)
 					errors = append(errors, err.Error())
 					continue
 				}
-				return j.claimsToContext(ctx, claims), nil
+				return j.claimsToContext(ctx, claims)
 			}
 		}
 	}

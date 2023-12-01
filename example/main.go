@@ -11,14 +11,14 @@ import (
 	"github.com/autom8ter/protoc-gen-authenticate/authenticator"
 	"github.com/autom8ter/protoc-gen-authenticate/example/gen/example"
 	"github.com/autom8ter/protoc-gen-authenticate/example/server"
-	`github.com/autom8ter/protoc-gen-authenticate/jwt`
+	"github.com/autom8ter/protoc-gen-authenticate/jwt"
 )
 
 func runServer() error {
 	var ctxKey = "user"
 	// create a new authenticator from the generated function(protoc-gen-authenticate)
-	auth, err := example.NewAuthentication("TEST", jwt.WithClaimsToContext(func(ctx context.Context, claims jwt2.MapClaims) context.Context {
-		return context.WithValue(ctx, ctxKey, claims)
+	auth, err := example.NewAuthentication("TEST", jwt.WithClaimsToContext(func(ctx context.Context, claims jwt2.MapClaims) (context.Context, error) {
+		return context.WithValue(ctx, ctxKey, claims), nil
 	}))
 	if err != nil {
 		return err
