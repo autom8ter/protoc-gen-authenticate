@@ -3,9 +3,9 @@ package authenticator
 import (
 	"context"
 
-	`github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors`
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
-	`github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/selector`
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/selector"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -26,6 +26,8 @@ type Authenticator interface {
 }
 
 // UnaryServerInterceptor returns a new unary server interceptor that authenticates a grpc request
+// If no matchers are provided, the interceptor will attempt to authenticate all requests
+// If matchers are provided, the interceptor will only attempt to authenticate requests if at least one matcher matches
 func UnaryServerInterceptor(auth Authenticator, matchers ...selector.Matcher) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if len(matchers) == 0 {
