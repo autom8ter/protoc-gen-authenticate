@@ -3,7 +3,9 @@ package authenticator
 import (
 	"context"
 
+	`github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors`
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
+	`github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/selector`
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -24,16 +26,40 @@ type Authenticator interface {
 }
 
 // UnaryServerInterceptor returns a new unary server interceptor that authenticates a grpc request
-func UnaryServerInterceptor(auth Authenticator) grpc.UnaryServerInterceptor {
-	return grpc_auth.UnaryServerInterceptor(auth.Authenticate)
+func UnaryServerInterceptor(auth Authenticator, matchers ...selector.Matcher) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		if len(matchers) == 0 {
+			return grpc_auth.UnaryServerInterceptor(auth.Authenticate)(ctx, req, info, handler)
+		}
+		meta := interceptors.NewServerCallMeta(info.FullMethod, nil, req)
+		for _, matcher := range matchers {
+			if matcher.Match(ctx, meta) {
+				return grpc_auth.UnaryServerInterceptor(auth.Authenticate)(ctx, req, info, handler)
+			}
+		}
+		return handler(ctx, req)
+	}
 }
 
 // StreamServerInterceptor returns a new stream server interceptor that authenticates a grpc request
-func StreamServerInterceptor(auth Authenticator) grpc.StreamServerInterceptor {
-	return grpc_auth.StreamServerInterceptor(auth.Authenticate)
+// If no matchers are provided, the interceptor will attempt to authenticate all requests
+// If matchers are provided, the interceptor will only attempt to authenticate requests if at least one matcher matches
+func StreamServerInterceptor(auth Authenticator, matchers ...selector.Matcher) grpc.StreamServerInterceptor {
+	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		if len(matchers) == 0 {
+			return grpc_auth.StreamServerInterceptor(auth.Authenticate)(srv, ss, info, handler)
+		}
+		meta := interceptors.NewServerCallMeta(info.FullMethod, info, nil)
+		for _, matcher := range matchers {
+			if matcher.Match(ss.Context(), meta) {
+				return grpc_auth.StreamServerInterceptor(auth.Authenticate)(srv, ss, info, handler)
+			}
+		}
+		return handler(srv, ss)
+	}
 }
 
-// AuthFromMD is a helper function that extracts an authorization token from a grpc metadata object
+// AuthFromMD is a helper function that extracts an authorization token from a grpc metadata object (same as github.com/grpc-ecosystem/go-grpc-middleware/auth.AuthFromMD)
 func AuthFromMD(ctx context.Context, scheme string) (string, error) {
 	return grpc_auth.AuthFromMD(ctx, scheme)
 }
