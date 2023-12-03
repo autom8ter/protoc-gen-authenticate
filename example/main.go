@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/autom8ter/protoc-gen-authenticate/authenticator"
-	"github.com/autom8ter/protoc-gen-authenticate/example/gen/example"
+	examplev1 "github.com/autom8ter/protoc-gen-authenticate/example/gen/example/v1"
 	"github.com/autom8ter/protoc-gen-authenticate/example/server"
 	"github.com/autom8ter/protoc-gen-authenticate/jwt"
 )
@@ -17,7 +17,7 @@ import (
 func runServer() error {
 	var ctxKey = "user"
 	// create a new authenticator from the generated function(protoc-gen-authenticate)
-	auth, err := example.NewAuthentication("TEST", jwt.WithClaimsToContext(func(ctx context.Context, claims jwt2.MapClaims) (context.Context, error) {
+	auth, err := examplev1.NewAuthentication("TEST", jwt.WithClaimsToContext(func(ctx context.Context, claims jwt2.MapClaims) (context.Context, error) {
 		return context.WithValue(ctx, ctxKey, claims), nil
 	}))
 	if err != nil {
@@ -34,8 +34,8 @@ func runServer() error {
 	)
 	exampleServer := &server.ExampleServer{}
 	// register the example service
-	example.RegisterPrivateServiceServer(srv, exampleServer)
-	example.RegisterGoogleServiceServer(srv, exampleServer)
+	examplev1.RegisterPrivateServiceServer(srv, exampleServer)
+	examplev1.RegisterGoogleServiceServer(srv, exampleServer)
 	lis, err := net.Listen("tcp", ":10042")
 	if err != nil {
 		return err

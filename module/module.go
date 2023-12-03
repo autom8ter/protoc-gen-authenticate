@@ -2,7 +2,7 @@ package module
 
 import (
 	"bytes"
-	"fmt"
+	"strings"
 	"text/template"
 
 	"github.com/autom8ter/proto/gen/authenticate"
@@ -22,7 +22,7 @@ func New() pgs.Module {
 }
 
 func (m *module) Name() string {
-	return "authorize"
+	return "authenticate"
 }
 
 func (m *module) InitContext(c pgs.BuildContext) {
@@ -65,7 +65,9 @@ func (m *module) generate(f pgs.File) {
 				}
 			}
 		}
-		configMap[fmt.Sprintf("%s.%s", m.Context.PackageName(f).String(), s.Name())] = configs
+		name := s.FullyQualifiedName()
+		name = strings.TrimPrefix(name, ".")
+		configMap[name] = configs
 	}
 	if len(configMap) == 0 {
 		return

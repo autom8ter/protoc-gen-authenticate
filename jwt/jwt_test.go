@@ -16,13 +16,14 @@ import (
 )
 
 type fixture struct {
-	name         string
-	environment  string
-	method       string // method to call
-	config       map[string][]*authenticate.Config
-	expectError  bool
-	getToken     func(t *testing.T, ctx context.Context) string
-	expectClaims func(t *testing.T, claims jwt2.MapClaims)
+	name            string
+	environment     string
+	method          string // method to call
+	config          map[string][]*authenticate.Config
+	expectError     bool
+	getToken        func(t *testing.T, ctx context.Context) string
+	claimsToContext jwt.ClaimsToContext
+	expectCtx       func(t *testing.T, ctx context.Context)
 }
 
 func TestJwtAuth_Authenticate(t *testing.T) {
@@ -67,7 +68,12 @@ func TestJwtAuth_Authenticate(t *testing.T) {
 					},
 				},
 			},
-			expectClaims: func(t *testing.T, claims jwt2.MapClaims) {
+			claimsToContext: func(ctx context.Context, claims jwt2.MapClaims) (context.Context, error) {
+				return context.WithValue(ctx, "authenticate.claims", claims), nil
+			},
+			expectCtx: func(t *testing.T, ctx context.Context) {
+				claims, ok := ctx.Value("authenticate.claims").(jwt2.MapClaims)
+				require.True(t, ok)
 				require.Equal(t, "1234567890", claims["sub"])
 				require.Equal(t, "John Doe", claims["name"])
 				require.Equal(t, "test-issuer", claims["iss"])
@@ -396,7 +402,7 @@ func TestJwtAuth_Authenticate(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			// Initialize JwtAuth with mock configurations
-			jwtAuth, err := jwt.NewJwtAuth(fix.environment, fix.config)
+			jwtAuth, err := jwt.NewJwtAuth(fix.environment, fix.config, jwt.WithClaimsToContext(fix.claimsToContext))
 			require.NoError(t, err)
 			// Mock GRPC context with metadata
 			md := metadata.New(map[string]string{"authorization": fmt.Sprintf("Bearer %s", fix.getToken(t, ctx))})
@@ -408,9 +414,8 @@ func TestJwtAuth_Authenticate(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
-			claims, _ := ctx.Value("authenticate.claims").(jwt2.MapClaims)
-			if fix.expectClaims != nil {
-				fix.expectClaims(t, claims)
+			if fix.expectCtx != nil {
+				fix.expectCtx(t, ctx)
 			}
 		})
 	}

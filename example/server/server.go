@@ -5,12 +5,12 @@ import (
 
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/autom8ter/protoc-gen-authenticate/example/gen/example"
+	"github.com/autom8ter/protoc-gen-authenticate/example/gen/example/v1"
 )
 
 type ExampleServer struct {
-	example.UnimplementedGoogleServiceServer
-	example.UnimplementedPrivateServiceServer
+	examplev1.UnimplementedGoogleServiceServer
+	examplev1.UnimplementedPrivateServiceServer
 }
 
 func (e *ExampleServer) RequireAuthentication(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {

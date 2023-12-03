@@ -1,4 +1,4 @@
-package example
+package examplev1
 
 import (
 	"github.com/autom8ter/proto/gen/authenticate"
@@ -11,7 +11,7 @@ import (
 // The authenticator will use the claimsToContext function to add claims to the context if the request is authenticated
 func NewAuthentication(environment string, opts ...jwtAuth.Option) (authenticator.AuthFunc, error) {
 	auth, err := jwtAuth.NewJwtAuth(environment, map[string][]*authenticate.Config{
-		"example.GoogleService": {
+		"example.v1.GoogleService": {
 			{
 				Environment: "TEST",
 				WhitelistMethods: []string{
@@ -37,7 +37,7 @@ func NewAuthentication(environment string, opts ...jwtAuth.Option) (authenticato
 				},
 			},
 		},
-		"example.PrivateService": {
+		"example.v1.PrivateService": {
 			{
 				Environment: "TEST",
 				WhitelistMethods: []string{

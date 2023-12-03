@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/autom8ter/protoc-gen-authenticate/example/gen/example"
+	"github.com/autom8ter/protoc-gen-authenticate/example/gen/example/v1"
 	"github.com/autom8ter/protoc-gen-authenticate/jwt"
 )
 
@@ -45,7 +45,7 @@ func Test(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to dial server: %v", err)
 	}
-	privateClient := example.NewPrivateServiceClient(conn)
+	privateClient := examplev1.NewPrivateServiceClient(conn)
 	if _, err := privateClient.Unauthenticated(ctx, &emptypb.Empty{}); err != nil {
 		t.Fatalf("failed to call Unauthenticated: %v", err)
 	}
