@@ -30,6 +30,7 @@ The plugin can be installed with the following command:
 
 Add the proto file to your protobuf directory(usually `proto/`):
 
+    mkdir -p proto/authenticate
     curl -sSL https://raw.githubusercontent.com/autom8ter/proto/master/proto/authenticate/authenticate.proto > proto/authenticate/authenticate.proto
 
 You can then import the proto file in your proto files:
