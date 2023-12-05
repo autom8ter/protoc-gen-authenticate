@@ -28,8 +28,17 @@ The plugin can be installed with the following command:
 
 ## Code Generation
 
-buf.gen.yaml example:
+Add the proto file to your protobuf directory(usually `proto/`):
 
+    curl -sSL https://raw.githubusercontent.com/autom8ter/proto/master/proto/authenticate/authenticate.proto > proto/authenticate/authenticate.proto
+
+You can then import the proto file in your proto files:
+
+```proto
+import "authenticate/authenticate.proto";
+```
+
+To generate the code, you can add the following to your `buf.gen.yaml` file:
 ```yaml
 version: v1
 plugins:
@@ -45,6 +54,8 @@ plugins:
     opt:
       - paths=source_relative
 ```
+See [buf.build](https://buf.build/docs/ecosystem/cli-overview) for more information on how to use `buf` to generate code.
+
 
 ## Example
 
@@ -102,7 +113,11 @@ service PrivateService {
 
 ```go
     // create a new authenticator from the generated function(protoc-gen-authenticate)
-	auth, err := example.NewAuthentication("TEST")
+	// jwt.WithClaimsToContext is an optional option that allows you to add claims to the context so that they can be extracted in your application code
+	// normally, you would use this to lookup the user in your database and add the user to the context
+	auth, err := example.NewAuthentication("TEST", jwt.WithClaimsToContext(func(ctx context.Context, claims jwt2.MapClaims) (context.Context, error) {
+        return context.WithValue(ctx, ctxKey, claims), nil
+    }))
 	if err != nil {
 		return err
 	}
